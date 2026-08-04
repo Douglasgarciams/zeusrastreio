@@ -8,15 +8,10 @@ from typing import Optional
 from datetime import datetime
 from fastapi.responses import HTMLResponse
 
-@app.get("/", response_class=HTMLResponse)
-def ler_raiz():
-    with open("index.html", "r", encoding="utf-8") as f:
-        return f.read()
-
-models.Base.metadata.create_all(bind=engine)
-
+# 1. Crie o aplicativo PRIMEIRO
 app = FastAPI(title="Rastreador GPS API", version="2.0")
 
+# 2. Configure os middlewares e o banco logo em seguida
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -24,6 +19,14 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+models.Base.metadata.create_all(bind=engine)
+
+# 3. Agora adicione a rota raiz para servir o index.html
+@app.get("/", response_class=HTMLResponse)
+def ler_raiz():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 def get_db():
     db = SessionLocal()
@@ -54,7 +57,6 @@ def get_device_locations(
 ):
     query = db.query(models.LocationModel).filter(models.LocationModel.device_id == device_id)
     
-    # Filtro opcional por período (formato YYYY-MM-DDTHH:MM:SS)
     if start_date:
         query = query.filter(models.LocationModel.timestamp >= start_date)
     if end_date:
@@ -67,7 +69,6 @@ def get_device_locations(
 
 @app.get("/devices")
 def get_active_devices(db: Session = Depends(get_db)):
-    # Retorna a lista de todos os IDs únicos cadastrados no banco
     devices = db.query(models.LocationModel.device_id).distinct().all()
     return [d[0] for d in devices]
 
@@ -80,11 +81,9 @@ def gps_tracker_get(
     timestamp: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    # Se os parâmetros vierem vazios, apenas retorna OK 
     if not imei or not lat or not lon:
         return {"status": "ok", "message": "Servidor online"}
     
-    # Salva no banco usando o seu modelo existente
     db_location = models.LocationModel(
         device_id=imei,
         latitude=lat,
