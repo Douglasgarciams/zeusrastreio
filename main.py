@@ -64,3 +64,29 @@ def get_active_devices(db: Session = Depends(get_db)):
     # Retorna a lista de todos os IDs únicos cadastrados no banco
     devices = db.query(models.LocationModel.device_id).distinct().all()
     return [d[0] for d in devices]
+
+@app.get("/api/posicoes")
+def gps_tracker_get(
+    imei: Optional[str] = None,
+    lat: Optional[float] = None,
+    lon: Optional[float] = None,
+    speed: Optional[float] = 0.0,
+    timestamp: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    # Se os parâmetros vierem vazios, apenas retorna OK para o app não reclamar
+    if not imei or not lat or not lon:
+        return {"status": "ok", "message": "Servidor online"}
+    
+    # Salva no banco usando o seu modelo existente
+    db_location = models.LocationModel(
+        device_id=imei,
+        latitude=lat,
+        longitude=lon,
+        speed=speed,
+        timestamp=timestamp or datetime.utcnow().isoformat()
+    )
+    db.add(db_location)
+    db.commit()
+    
+    return {"status": "success"}
