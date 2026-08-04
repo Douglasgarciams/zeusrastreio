@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel de Rastreamento Avançado - Zeus Rastreio</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    
+    <style>
+        body { margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f4f6f9; display: flex; height: 100vh; flex-direction: column; }
+        header { background-color: #1e293b; color: white; padding: 15px 20px; font-size: 20px; font-weight: bold; height: 30px; }
+        .main-container { display: flex; flex: 1; height: calc(100vh - 60px); }
+        #sidebar { width: 300px; background: white; border-right: 1px solid #cbd5e1; padding: 15px; overflow-y: auto; }
+        #map { flex: 1; height: 100%; }
+        .device-card { background: #f8fafc; border: 1px solid #e2e8f0; padding: 10px; border-radius: 6px; margin-bottom: 10px; cursor: pointer; transition: 0.2s; }
+        .device-card:hover { background: #f1f5f9; border-color: #94a3b8; }
+        .device-card.active { border-color: #3b82f6; background: #eff6ff; }
+        h3 { margin-top: 0; font-size: 16px; color: #1e293b; }
+        p { margin: 4px 0; font-size: 13px; color: #475569; }
+    </style>
+</head>
+<body>
+
+    <header>Zeus Rastreio - Frota em Tempo Real</header>
+
+    <div class="main-container">
+        <div id="sidebar">
+            <h3>Dispositivos da Frota</h3>
+            <div id="devices-list">Carregando dispositivos...</div>
+        </div>
+        <div id="map"></div>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <script>
+        const apiBaseUrl = "http://127.0.0.1:8000";
+        const map = L.map('map').setView([-23.55052, -46.63330], 13);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        let markers = {};
+        let polylines = {};
+        let selectedDevice = null;
+
+        async function carregarDispositivos() {
+            try {
+                const res = await fetch(`${apiBaseUrl}/devices`);
+                const devices = await res.json();
+                
+                const listContainer = document.getElementById('devices-list');
+                listContainer.innerHTML = '';
+
+                devices.forEach(devId => {
+                    if (!selectedDevice) selectedDevice = devId; // Seleciona o primeiro por padrão
+
+                    const card = document.createElement('div');
+                    card.className = `device-card ${selectedDevice === devId ? 'active' : ''}`;
+                    card.id = `card-${devId}`;
+                    card.innerHTML = `
+                        <strong>🚗 ${devId}</strong>
+                        <p>Velocidade: <span id="speed-${devId}">--</span> km/h</p>
+                        <p>Bateria: <span id="bat-${devId}">--</span>%</p>
+                    `;
+                    card.onclick = () => {
+                        document.querySelectorAll('.device-card').forEach(c => c.classList.remove('active'));
+                        card.classList.add('active');
+                        selectedDevice = devId;
+                        atualizarDadosVeiculo(devId, true);
+                    };
+                    listContainer.appendChild(card);
+                });
+            } catch (e) {
+                console.error("Erro ao carregar lista de dispositivos:", e);
+            }
+        }
+
+        async function atualizarDadosVeiculo(devId, centralizar = false) {
+            try {
+                const res = await fetch(`${apiBaseUrl}/locations/${devId}`);
+                if (!res.ok) return;
+                const locations = await res.json();
+                if (locations.length === 0) return;
+
+                const ultima = locations[locations.length - 1];
+                
+                // Atualiza textos na barra lateral
+                document.getElementById(`speed-${devId}`).innerText = ultima.speed ?? 0;
+                document.getElementById(`bat-${devId}`).innerText = ultima.battery ?? '--';
+
+                const latLngs = locations.map(l => [l.latitude, l.longitude]);
+
+                // Atualiza ou cria o marcador na última posição
+                if (!markers[devId]) {
+                    markers[devId] = L.marker([ultima.latitude, ultima.longitude]).addTo(map)
+                        .bindPopup(`<b>${devId}</b>`);
+                } else {
+                    markers[devId].setLatLng([ultima.latitude, ultima.longitude]);
+                }
+
+                // Desenha ou atualiza a linha da trilha (histórico de trajeto)
+                if (!polylines[devId]) {
+                    polylines[devId] = L.polyline(latLngs, {color: 'blue', weight: 4, opacity: 0.7}).addTo(map);
+                } else {
+                    polylines[devId].setLatLngs(latLngs);
+                }
+
+                if (centralizar && selectedDevice === devId) {
+                    map.setView([ultima.latitude, ultima.longitude], 15);
+                }
+            } catch (e) {
+                console.error(`Erro ao atualizar veículo ${devId}:`, e);
+            }
+        }
+
+        async function atualizarTudo() {
+            try {
+                const res = await fetch(`${apiBaseUrl}/devices`);
+                const devices = await res.json();
+                
+                devices.forEach(devId => {
+                    atualizarDadosVeiculo(devId, false);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        // Inicialização
+        async function init() {
+            await carregarDispositivos();
+            setInterval(atualizarTudo, 4000); // Atualiza os dados a cada 4 segundos
+        }
+
+        init();
+    </script>
+</body>
+</html>
