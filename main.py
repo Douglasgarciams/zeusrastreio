@@ -74,7 +74,7 @@ def gps_tracker_get(
     timestamp: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
-    # Se os parâmetros vierem vazios, apenas retorna OK para o app não reclamar
+    # Se os parâmetros vierem vazios, apenas retorna OK 
     if not imei or not lat or not lon:
         return {"status": "ok", "message": "Servidor online"}
     
