@@ -6,6 +6,12 @@ import schemas
 from database import engine, SessionLocal
 from typing import Optional
 from datetime import datetime
+from fastapi.responses import HTMLResponse
+
+@app.get("/", response_class=HTMLResponse)
+def ler_raiz():
+    with open("index.html", "r", encoding="utf-8") as f:
+        return f.read()
 
 models.Base.metadata.create_all(bind=engine)
 
