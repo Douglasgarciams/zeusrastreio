@@ -7,6 +7,7 @@ from database import engine, SessionLocal
 from typing import Optional
 from datetime import datetime
 from fastapi.responses import HTMLResponse
+from datetime import datetime, timedelta, timezone
 
 # 1. Crie o aplicativo PRIMEIRO
 app = FastAPI(title="Rastreador GPS API", version="2.0")
@@ -85,8 +86,13 @@ def gps_tracker_get(
     if not imei or not lat or not lon:
         return {"status": "ok", "message": "Servidor online"}
     
-    # Usa o data_hora enviado pelo app, ou o timestamp, ou gera o UTC atual como último caso
-    hora_final = data_hora or timestamp or datetime.utcnow().isoformat()
+    # Se o app mandou a data_hora, usamos ela. Senão, pegamos a hora UTC do servidor de Ohio e convertemos para o horário do Brasil (UTC-4)
+    if data_hora:
+        hora_final = data_hora
+    else:
+        # Fuso horário do Brasil (Ex: Mato Grosso do Sul / Brasília é UTC-4 ou UTC-3, ajustando para o horário local real)
+        fuso_brasil = timezone(timedelta(hours=-4))
+        hora_final = datetime.now(fuso_brasil).isoformat()
     
     db_location = models.LocationModel(
         device_id=imei,
