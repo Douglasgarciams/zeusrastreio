@@ -75,9 +75,12 @@ void onStart(ServiceInstance service) async {
       double lat = position.latitude;
       double lon = position.longitude;
       double speed = position.speed * 3.6;
+      
+      // Pega a data e hora local exata do celular para evitar problemas de fuso horário no servidor
+      String dataHora = DateTime.now().toIso8601String();
 
       final url = Uri.parse(
-        'https://zeusrastreio.onrender.com/api/posicoes?imei=$imei&lat=$lat&lon=$lon&speed=$speed'
+        'https://zeusrastreio.onrender.com/api/posicoes?imei=$imei&lat=$lat&lon=$lon&speed=$speed&data_hora=$dataHora'
       );
 
       final response = await http.get(url);
