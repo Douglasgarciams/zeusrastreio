@@ -1,0 +1,6 @@
+dependencies:
+  flutter:
+    sdk: flutter
+  geolocator: ^13.0.2
+  http: ^1.2.0
+  flutter_background_service: ^5.0.6
