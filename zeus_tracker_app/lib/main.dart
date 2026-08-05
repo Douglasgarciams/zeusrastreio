@@ -46,6 +46,8 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
   bool _isRecording = false;
   String? _audioPath;
 
+  final String servidorUrl = "https://zeusrastreio.onrender.com";
+
   @override
   void initState() {
     super.initState();
@@ -60,24 +62,53 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
     super.dispose();
   }
 
+  // --- FUNÇÃO DE UPLOAD DE MÍDIA PARA O SERVIDOR ---
+  Future<void> _enviarMidiaServidor(File arquivo, String tipo) async {
+    try {
+      setState(() => _statusMessage = "Enviando $tipo para o painel...");
+      
+      var request = http.MultipartRequest('POST', Uri.parse('$servidorUrl/api/multimidia'));
+      request.fields['imei'] = _imeiController.text.trim();
+      request.fields['tipo'] = tipo; // 'foto' ou 'audio'
+      request.fields['data_hora'] = DateTime.now().toIso8601String();
+
+      request.files.add(await http.MultipartFile.fromPath('file', arquivo.path));
+
+      var streamedResponse = await request.send();
+      var response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 201) {
+        setState(() => _statusMessage = "${tipo.capitalize()} enviado com sucesso!");
+      } else {
+        setState(() => _statusMessage = "Erro ao enviar $tipo ao servidor.");
+      }
+    } catch (e) {
+      print("Erro de conexão no upload: $e");
+      setState(() => _statusMessage = "Falha de conexão com o servidor.");
+    }
+  }
+
   // --- FUNÇÕES DE CÂMERA E FOTO ---
   Future<void> _tirarFoto() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.camera, imageQuality: 80);
     if (image != null) {
+      File arquivoFoto = File(image.path);
       setState(() {
-        _selectedImage = File(image.path);
-        _statusMessage = "Foto capturada com sucesso!";
+        _selectedImage = arquivoFoto;
       });
+      // Envia direto para o Render
+      await _enviarMidiaServidor(arquivoFoto, 'foto');
     }
   }
 
   Future<void> _escolherDaGaleria() async {
     final XFile? image = await _picker.pickImage(source: ImageSource.gallery, imageQuality: 80);
     if (image != null) {
+      File arquivoFoto = File(image.path);
       setState(() {
-        _selectedImage = File(image.path);
-        _statusMessage = "Imagem selecionada da galeria.";
+        _selectedImage = arquivoFoto;
       });
+      await _enviarMidiaServidor(arquivoFoto, 'foto');
     }
   }
 
@@ -102,11 +133,14 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
   Future<void> _pararGravacao() async {
     try {
       final path = await _audioRecorder.stop();
-      setState(() {
-        _isRecording = false;
-        _audioPath = path;
-        _statusMessage = "Áudio gravado com sucesso!";
-      });
+      if (path != null) {
+        setState(() {
+          _isRecording = false;
+          _audioPath = path;
+        });
+        // Envia o áudio gravado direto para o servidor
+        await _enviarMidiaServidor(File(path), 'audio');
+      }
     } catch (e) {
       print("Erro ao parar gravação: $e");
     }
@@ -161,7 +195,7 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
       String dataHora = DateTime.now().toIso8601String();
 
       final url = Uri.parse(
-        'https://zeusrastreio.onrender.com/api/posicoes?imei=$imei&lat=$lat&lon=$lon&speed=$speed&data_hora=$dataHora'
+        '$servidorUrl/api/posicoes?imei=$imei&lat=$lat&lon=$lon&speed=$speed&data_hora=$dataHora'
       );
 
       final response = await http.get(url);
@@ -200,7 +234,6 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
             ),
             const SizedBox(height: 20),
             
-            // Botão de Rastreio Principal
             ElevatedButton(
               style: ElevatedButton.styleFrom(
                 backgroundColor: _isTracking ? Colors.red : Colors.green,
@@ -212,7 +245,6 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
             ),
             const Divider(height: 40),
 
-            // Seção de Câmera e Fotos
             const Text("Controle de Câmera e Imagem", style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             Row(
@@ -241,7 +273,6 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
               ),
             const Divider(height: 40),
 
-            // Seção de Gravação de Áudio
             const Text("Gravação de Áudio", style: TextStyle(fontWeight: FontWeight.bold)),
             const SizedBox(height: 10),
             ElevatedButton.icon(
@@ -253,18 +284,15 @@ class _MultimidiaRastreioPageState extends State<MultimidiaRastreioPage> {
               icon: Icon(_isRecording ? Icons.stop : Icons.mic),
               label: Text(_isRecording ? "Parar Gravação" : "Gravar Áudio"),
             ),
-            if (_audioPath != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 10),
-                child: Text(
-                  "Áudio salvo em:\n$_audioPath",
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
-              ),
           ],
         ),
       ),
     );
+  }
+}
+
+extension StringExtension on String {
+  String capitalize() {
+    return "${this[0].toUpperCase()}${substring(1)}";
   }
 }
