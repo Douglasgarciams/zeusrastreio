@@ -79,17 +79,21 @@ def gps_tracker_get(
     lon: Optional[float] = None,
     speed: Optional[float] = 0.0,
     timestamp: Optional[str] = None,
+    data_hora: Optional[str] = None,
     db: Session = Depends(get_db)
 ):
     if not imei or not lat or not lon:
         return {"status": "ok", "message": "Servidor online"}
+    
+    # Usa o data_hora enviado pelo app, ou o timestamp, ou gera o UTC atual como último caso
+    hora_final = data_hora or timestamp or datetime.utcnow().isoformat()
     
     db_location = models.LocationModel(
         device_id=imei,
         latitude=lat,
         longitude=lon,
         speed=speed,
-        timestamp=timestamp or datetime.utcnow().isoformat()
+        timestamp=hora_final
     )
     db.add(db_location)
     db.commit()
