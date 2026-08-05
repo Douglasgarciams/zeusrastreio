@@ -115,10 +115,63 @@
             color: #94a3b8;
             border-bottom: 1px solid #334155;
         }
-        #map {
+        
+        /* Layout Principal dividido entre Mapa e Painel Multimídia */
+        .main-content {
+            display: flex;
             flex: 1;
-            width: 100%;
+            overflow: hidden;
+        }
+        #map {
+            flex: 2;
+            height: 100%;
             z-index: 1;
+        }
+        
+        /* Painel Lateral de Mídia (Fotos e Áudios) */
+        .media-panel {
+            flex: 1;
+            background-color: #1e293b;
+            border-left: 1px solid #334155;
+            padding: 15px;
+            overflow-y: auto;
+            max-width: 400px;
+        }
+        .media-panel h3 {
+            font-size: 1.1rem;
+            color: #38bdf8;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #334155;
+            padding-bottom: 8px;
+        }
+        .media-item {
+            background-color: #334155;
+            padding: 10px;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            border: 1px solid #475569;
+        }
+        .media-item p {
+            font-size: 0.8rem;
+            color: #94a3b8;
+            margin-bottom: 5px;
+        }
+        .media-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .media-item audio {
+            width: 100%;
+            height: 35px;
+        }
+
+        @media(max-width: 768px) {
+            .main-content { flex-direction: column; }
+            .media-panel { max-width: 100%; height: 250px; }
+            #map { height: 50vh; }
         }
     </style>
 </head>
@@ -148,7 +201,17 @@
         Status: <span id="lastUpdate" style="color: #38bdf8;">Aguardando dados...</span>
     </div>
 
-    <div id="map"></div>
+    <div class="main-content">
+        <div id="map"></div>
+        
+        <!-- Painel Lateral de Mídia -->
+        <div class="media-panel">
+            <h3>📷 Fotos e Áudios Capturados</h3>
+            <div id="mediaList">
+                <p style="color: #64748b; font-size: 0.9rem;">Nenhuma mídia registrada ainda.</p>
+            </div>
+        </div>
+    </div>
 
     <!-- Leaflet JS -->
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
@@ -207,7 +270,6 @@
                 const latLngs = data.map(item => [item.latitude, item.longitude]);
                 const ultimaPosicao = data[data.length - 1];
 
-                // Força o fuso horário correto do Brasil
                 const dataFormatada = new Date(ultimaPosicao.timestamp).toLocaleString('pt-BR', {
                     timeZone: 'America/Campo_Grande',
                     dateStyle: 'short',
@@ -233,10 +295,49 @@
 
                 statusEl.innerText = `Última atualização: ${dataFormatada} (Total de pontos: ${data.length})`;
 
+                // Renderiza as mídias caso existam registros com arquivos anexados
+                renderizarMidias(data);
+
             } catch (error) {
                 console.error("Erro ao buscar localizações:", error);
                 statusEl.innerText = "Erro ao conectar com a API.";
             }
+        }
+
+        function renderizarMidias(data) {
+            const mediaListEl = document.getElementById("mediaList");
+            mediaListEl.innerHTML = "";
+
+            // Filtra registros que possuem arquivo de mídia vinculado
+            const comMidia = data.filter(item => item.arquivo_url);
+
+            if (comMidia.length === 0) {
+                mediaListEl.innerHTML = '<p style="color: #64748b; font-size: 0.9rem;">Nenhuma mídia registrada ainda.</p>';
+                return;
+            }
+
+            comMidia.reverse().forEach(item => {
+                const div = document.createElement("div");
+                div.className = "media-item";
+                
+                const dataFormatada = new Date(item.timestamp).toLocaleString('pt-BR', {
+                    timeZone: 'America/Campo_Grande',
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                });
+
+                let conteudo = `<p>🕒 ${dataFormatada}</p>`;
+
+                // Verifica se é áudio ou imagem com base na URL
+                if (item.arquivo_url.endsWith('.m4a') || item.arquivo_url.includes('audio')) {
+                    conteudo += `<audio controls src="${API_URL}${item.arquivo_url}"></audio>`;
+                } else {
+                    conteudo += `<a href="${API_URL}${item.arquivo_url}" target="_blank"><img src="${API_URL}${item.arquivo_url}" alt="Foto Capturada" title="Clique para ampliar"></a>`;
+                }
+
+                div.innerHTML = conteudo;
+                mediaListEl.mediaListEl = mediaListEl.appendChild(div);
+            });
         }
 
         function mudarDispositivo() {
@@ -245,7 +346,7 @@
                 marker = null;
             }
             if(polyline) {
-                map.removeLayer(polyline);
+                polyline.setLatLngs([]);
                 polyline = null;
             }
             carregarLocalizacoes();
