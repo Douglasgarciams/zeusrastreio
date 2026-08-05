@@ -207,12 +207,19 @@
                 const latLngs = data.map(item => [item.latitude, item.longitude]);
                 const ultimaPosicao = data[data.length - 1];
 
+                // Força o fuso horário correto do Brasil
+                const dataFormatada = new Date(ultimaPosicao.timestamp).toLocaleString('pt-BR', {
+                    timeZone: 'America/Campo_Grande',
+                    dateStyle: 'short',
+                    timeStyle: 'medium'
+                });
+
                 if (marker) {
                     marker.setLatLng([ultimaPosicao.latitude, ultimaPosicao.longitude]);
-                    marker.bindPopup(`<b>Dispositivo:</b> ${deviceId}<br><b>Velocidade:</b> ${ultimaPosicao.speed || 0} km/h<br><b>Data/Hora:</b> ${new Date(ultimaPosicao.timestamp).toLocaleString()}`);
+                    marker.bindPopup(`<b>Dispositivo:</b> ${deviceId}<br><b>Velocidade:</b> ${ultimaPosicao.speed || 0} km/h<br><b>Data/Hora:</b> ${dataFormatada}`);
                 } else {
                     marker = L.marker([ultimaPosicao.latitude, ultimaPosicao.longitude]).addTo(map)
-                        .bindPopup(`<b>Dispositivo:</b> ${deviceId}<br><b>Velocidade:</b> ${ultimaPosicao.speed || 0} km/h<br><b>Data/Hora:</b> ${new Date(ultimaPosicao.timestamp).toLocaleString()}`)
+                        .bindPopup(`<b>Dispositivo:</b> ${deviceId}<br><b>Velocidade:</b> ${ultimaPosicao.speed || 0} km/h<br><b>Data/Hora:</b> ${dataFormatada}`)
                         .openPopup();
                 }
 
@@ -224,7 +231,7 @@
                     polyline = L.polyline(latLngs, {color: '#38bdf8', weight: 4}).addTo(map);
                 }
 
-                statusEl.innerText = `Última atualização: ${new Date(ultimaPosicao.timestamp).toLocaleString()} (Total de pontos: ${data.length})`;
+                statusEl.innerText = `Última atualização: ${dataFormatada} (Total de pontos: ${data.length})`;
 
             } catch (error) {
                 console.error("Erro ao buscar localizações:", error);
