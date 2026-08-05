@@ -154,8 +154,7 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
     
     <script>
-        // Defina aqui a senha de acesso ao painel
-        const SENHA_MESTRE = "zeus123";
+        const SENHA_MESTRE = "Reserva207*";
 
         function fazerLogin() {
             const senha = document.getElementById("senhaInput").value;
@@ -180,7 +179,6 @@
         let map, marker, polyline;
 
         function initApp() {
-            // Inicializa o mapa centralizado
             map = L.map('map').setView([-20.44, -54.64], 13);
 
             L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -188,18 +186,8 @@
                 attribution: '© OpenStreetMap contributors'
             }).addTo(map);
 
-            carregarDispositivos();
             carregarLocalizacoes();
             setInterval(carregarLocalizacoes, 30000);
-        }
-
-        async function carregarDispositivos() {
-            try {
-                const response = await `${API_URL}/devices`; // Rota opcional caso sua API liste os aparelhos
-                // Se a API não tiver essa rota, o select mantém os padrões ou você pode popular dinamicamente
-            } catch (e) {
-                console.log("Usando lista padrão de dispositivos");
-            }
         }
 
         async function carregarLocalizacoes() {
